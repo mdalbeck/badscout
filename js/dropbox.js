@@ -147,3 +147,57 @@ export async function write(text, ifVersion) {
   if (!r.ok) throw await callError(r);
   return (await r.json()).rev;
 }
+
+// ---------- Andere Bad Apps: Dateien nur lesen ----------
+export const BADCLIP_FILE = 'badclip-daten.json';
+export const BADCLIP_VIDEOS = 'badclip-videos';
+/** Beliebige Textdatei aus dem gemeinsamen Ordner lesen; null, wenn es sie nicht gibt */
+export async function readText(name) {
+  const r = await call(`${CONTENT}/files/download`, { method: 'POST', headers: { 'Dropbox-API-Arg': JSON.stringify({ path: `/${name}` }) } });
+  if (r.status === 409) return null;
+  if (!r.ok) throw await callError(r);
+  return r.text();
+}
+
+// ---------- Eigene Videos: Dropbox › Apps › Bad Apps › badscout-videos/<id> ----------
+export const VIDEO_DIR = 'badscout-videos';
+export const videoPath = (id) => `/${VIDEO_DIR}/${id}`;
+const CHUNK = 8 * 1024 * 1024; // 8 MB pro Stück (wie BadClip) – auch sehr große Videos gehen so
+async function apiJson(endpoint, arg) {
+  const r = await call(`${API}/files/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(arg) });
+  if (r.status === 409) { const e = err('NotFound', 'not_found'); e.detail = await r.text().catch(() => ''); throw e; }
+  if (!r.ok) throw await callError(r);
+  return r.json().catch(() => ({}));
+}
+async function contentCall(endpoint, arg, body) {
+  const r = await call(`${CONTENT}/files/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': JSON.stringify(arg) }, body });
+  if (!r.ok) throw await callError(r);
+  return r.json().catch(() => ({}));
+}
+/** Video hochladen; onProgress(0..1). signal: { stop: true } bricht zwischen zwei Stücken ab. */
+export async function uploadVideo(id, blob, onProgress = () => {}, signal = {}) {
+  const path = videoPath(id);
+  if (blob.size <= CHUNK) { await contentCall('upload', { path, mode: { '.tag': 'overwrite' }, mute: true }, blob); onProgress(1); return; }
+  const { session_id } = await contentCall('upload_session/start', { close: false }, blob.slice(0, CHUNK));
+  let offset = CHUNK;
+  onProgress(offset / blob.size);
+  while (blob.size - offset > CHUNK) {
+    if (signal.stop) throw err('AbortError', 'abort');
+    await contentCall('upload_session/append_v2', { cursor: { session_id, offset }, close: false }, blob.slice(offset, offset + CHUNK));
+    offset += CHUNK;
+    onProgress(offset / blob.size);
+  }
+  await contentCall('upload_session/finish', { cursor: { session_id, offset }, commit: { path, mode: { '.tag': 'overwrite' }, mute: true } }, blob.slice(offset));
+  onProgress(1);
+}
+/** Zeitlich begrenzter Link (4 Stunden) zum direkten Abspielen – das Video wird gestreamt, nicht ganz geladen. null = Datei fehlt */
+export async function tempLink(path) {
+  try { return (await apiJson('get_temporary_link', { path })).link; } catch (e) { if (e.name === 'NotFound') return null; throw e; }
+}
+/** Datei innerhalb von Dropbox kopieren (ohne Hoch- oder Herunterladen) */
+export async function copyFile(from, to) {
+  return apiJson('copy_v2', { from_path: from, to_path: to, autorename: false });
+}
+export async function deleteVideo(id) {
+  try { await apiJson('delete_v2', { path: videoPath(id) }); } catch (e) { if (e.name !== 'NotFound') throw e; }
+}

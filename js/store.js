@@ -12,7 +12,10 @@ export const VERSION = 1;
  *     kind: 'single' | 'double', scoring: 21 | 15,
  *     ours: [Spieler-ID aus BadTeam], names: { Spieler-ID: Name }   (Namen gemerkt, falls BadTeam gerade nicht erreichbar ist)
  *     opp: ['Name des Gegners', …],
- *     video: null | { … }   (kommt in Schritt 2)
+ *     video: null
+ *       | { kind: 'yt', ytId, title }                                            YouTube
+ *       | { kind: 'file', id, title, fileName, size, mime, duration, thumb, dbx, from }   eigene Datei
+ *         (dbx: liegt in Dropbox › Apps › Bad Apps › badscout-videos/<id>; from: 'badclip', wenn aus BadClip übernommen)
  *     rallies: [], notes: []   (kommen in Schritt 3)
  *     done: false, createdAt, updatedAt }
  * deleted    Gelöschtes: { id: Zeitpunkt } – damit Löschungen beim Abgleich zwischen Geräten nicht wieder auftauchen
@@ -131,6 +134,14 @@ export function setMeta(patch) {
 }
 export const isDirty = () => S.meta.lastChange > (S.meta.lastExport || 0);
 export const hasData = () => LISTS.some((k) => S.data[k].length);
+
+// ---------- Videodateien auf diesem Gerät (nicht in der Sicherungsdatei, nicht im Abgleich) ----------
+export async function getFile(id) { if (!db) return null; try { return (await kvGet(`file:${id}`)) || null; } catch { return null; } }
+export async function putFile(id, blob) { if (!db) throw new Error('no db'); await kvPut([[`file:${id}`, blob]]); }
+export async function delFile(id) {
+  if (!db) return;
+  await new Promise((res) => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).delete(`file:${id}`); tx.oncomplete = tx.onerror = tx.onabort = res; });
+}
 
 // ---------- Datum ----------
 const pad = (n) => String(n).padStart(2, '0');

@@ -6,6 +6,7 @@ import { gamesView, gameView, gameFormView, gameRow } from './games.js';
 import { playersView, playerView } from './players.js';
 import * as Sync from './sync.js';
 import * as BT from './badteam.js';
+import { uploading } from './video.js';
 import { startTour, isTourOpen } from './tour.js';
 import { mountSwitcher, hideBoot } from './family.js';
 
@@ -225,6 +226,7 @@ function toggleLang() {
 // ================= Tastenkürzel: Anzeige an/aus + Übersicht =================
 const keyGroups = () => [
   [t('nav.games'), [['N', t('gm.new')], ['/', t('keys.search')], ['E', t('keys.edit')], ['Esc', t('keys.back')], [`${t('key.ctrl')} + ↵`, t('keys.save')]]],
+  [t('keys.gVideo'), [[t('key.space') + ' / K', t('vd.play')], ['← / →', t('vd.skip5')], ['⇧ + ← / →', t('vd.skip1')], [', / .', t('vd.frames')], ['− / +', t('vd.rate')], ['U', t('vd.file')], ['Y', t('vd.yt')], ['B', t('vd.bc')]]],
   [t('nav.backup'), [['E', t('bk.export')], ['I', t('bk.import')]]],
 ];
 const keysOn = () => St.S.meta.showKeys !== false; // Standard: an (hilft beim ersten Benutzen)
@@ -300,7 +302,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('beforeunload', (e) => {
   St.flush();
   // Ungespeichertes Formular: Browser fragt selbst nach
-  if (view?.isDirty?.()) { e.preventDefault(); e.returnValue = ''; }
+  if (view?.isDirty?.() || uploading()) { e.preventDefault(); e.returnValue = ''; }
 });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') St.flush(); });
 

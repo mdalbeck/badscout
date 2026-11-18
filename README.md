@@ -6,9 +6,9 @@ Part of the “Bad Apps” family, next to [BadClip](https://badclip.mpdalbeck.w
 Record your own players’ matches rally by rally and review them. Local-first: no login, no server, no build step.
 
 ## Status
-Step 1 done: matches (date, event, singles/doubles, scoring to 21 or 15, our players from BadTeam, opponents by name), player pages,
+Steps 1–2 done: videos (upload in 8 MB pieces to `badscout-videos/`, streaming via Dropbox link, YouTube, take over from BadClip by copying inside Dropbox), player with slow motion and frame steps, matches (date, event, singles/doubles, scoring to 21 or 15, our players from BadTeam, opponents by name), player pages,
 Dropbox sync, backup, tour, German/English, light/dark.
-Next: video (upload, YouTube, take over from BadClip), rally marking with timeline and notes, statistics with score graph, report, transfer to BadClip.
+Next: rally marking with timeline and notes, statistics with score graph, report, transfer to BadClip.
 
 ## How it works with the other apps
 - Players come from BadTeam: BadScout only **reads** `badteam-daten.json` (players without contact data, groups) – it never writes it.
