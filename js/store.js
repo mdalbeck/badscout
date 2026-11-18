@@ -16,13 +16,35 @@ export const VERSION = 1;
  *       | { kind: 'yt', ytId, title }                                            YouTube
  *       | { kind: 'file', id, title, fileName, size, mime, duration, thumb, dbx, from }   eigene Datei
  *         (dbx: liegt in Dropbox › Apps › Bad Apps › badscout-videos/<id>; from: 'badclip', wenn aus BadClip übernommen)
- *     rallies: [], notes: []   (kommen in Schritt 3)
+ *     rallies: [{ id, t0, t1 (Start/Ende in Sekunden), win: 'us' | 'them', type: Art-ID, shot: Schlagart | '', by: Spieler-ID | 'o0' | 'o1' | '' }]
+ *       (by: wer den Punkt gemacht hat – beim Winner die Gewinnerseite, beim Fehler die Seite, die den Fehler gemacht hat)
+ *     notes: [{ id, t, text }]
  *     done: false, createdAt, updatedAt }
+ * settings   Einstellungen fürs Markieren (für alle Spiele): { types: [{ id, name, kind: 'win' | 'err' }], shots: ['…'], notePause, updatedAt }
  * deleted    Gelöschtes: { id: Zeitpunkt } – damit Löschungen beim Abgleich zwischen Geräten nicht wieder auftauchen
  */
 
 const LISTS = ['games'];
-const empty = () => ({ games: [], deleted: {} });
+const empty = () => ({ games: [], settings: defaultSettings(), deleted: {} });
+
+// Grundausstattung der Markier-Knöpfe (Namen leer = Text aus i18n)
+export const DEFAULT_TYPES = [
+  { id: 'winner', name: '', kind: 'win' },
+  { id: 'net', name: '', kind: 'err' },
+  { id: 'out', name: '', kind: 'err' },
+  { id: 'forced', name: '', kind: 'err' },
+];
+export const DEFAULT_SHOTS = ['serve', 'clear', 'drop', 'smash', 'drive', 'net', 'lift', 'defence'];
+export const MAX_TYPES = 5;
+function defaultSettings() { return { types: DEFAULT_TYPES.map((x) => ({ ...x })), shots: [...DEFAULT_SHOTS], notePause: false, updatedAt: 0 }; }
+function cleanSettings(x) {
+  const d = defaultSettings();
+  if (!x || typeof x !== 'object') return d;
+  const types = (Array.isArray(x.types) ? x.types : []).filter((y) => y?.id).slice(0, MAX_TYPES)
+    .map((y) => ({ id: String(y.id), name: str(y.name), kind: y.kind === 'win' ? 'win' : 'err' }));
+  const shots = (Array.isArray(x.shots) ? x.shots : []).map(str).filter(Boolean).slice(0, 9);
+  return { types: types.length ? types : d.types, shots: Array.isArray(x.shots) ? shots : d.shots, notePause: !!x.notePause, updatedAt: x.updatedAt || 0 };
+}
 const TOMB_DAYS = 120; // so lange merkt sich die App Löschungen
 
 export const S = {
@@ -64,7 +86,10 @@ function kvPut(pairs) {
   });
 }
 
-const str = (v) => String(v ?? '').trim();
+function str(v) { return String(v ?? '').trim(); }
+const num = (v) => (Number.isFinite(+v) ? Math.max(0, Math.round(+v * 100) / 100) : 0);
+const cleanRally = (r) => ({ id: r.id, t0: num(r.t0), t1: num(r.t1), win: r.win === 'them' ? 'them' : 'us', type: String(r.type || ''), shot: str(r.shot), by: str(r.by) });
+const cleanNote = (n) => ({ id: n.id, t: num(n.t), text: str(n.text) });
 const cleanGame = (x) => ({
   day: /^\d{4}-\d{2}-\d{2}$/.test(x.day || '') ? x.day : todayIso(),
   event: str(x.event),
@@ -74,8 +99,8 @@ const cleanGame = (x) => ({
   names: x.names && typeof x.names === 'object' ? { ...x.names } : {},
   opp: (Array.isArray(x.opp) ? x.opp : []).map(str),
   video: x.video && typeof x.video === 'object' ? x.video : null,
-  rallies: Array.isArray(x.rallies) ? x.rallies : [],
-  notes: Array.isArray(x.notes) ? x.notes : [],
+  rallies: (Array.isArray(x.rallies) ? x.rallies : []).filter((r) => r?.id).map(cleanRally).sort((a, b) => a.t1 - b.t1),
+  notes: (Array.isArray(x.notes) ? x.notes : []).filter((n) => n?.id).map(cleanNote).sort((a, b) => a.t - b.t),
   done: !!x.done,
 });
 
@@ -83,6 +108,7 @@ function normalize(d) {
   const out = empty();
   for (const k of LISTS) out[k] = Array.isArray(d?.[k]) ? d[k].filter((x) => x && x.id) : [];
   out.games = out.games.map((g) => ({ id: g.id, ...cleanGame(g), createdAt: g.createdAt || 0, updatedAt: g.updatedAt || 0 }));
+  out.settings = cleanSettings(d?.settings);
   // Alte Löschvermerke vergessen
   const cutoff = Date.now() - TOMB_DAYS * 864e5;
   out.deleted = Object.fromEntries(Object.entries(d?.deleted && typeof d.deleted === 'object' ? d.deleted : {}).filter(([, ts]) => ts > cutoff));
@@ -167,6 +193,37 @@ export function deleteGame(id) {
   return () => change((d) => { untomb(id); if (before && !game(id)) d.games.push({ ...before, updatedAt: Date.now() }); });
 }
 
+// ---------- Ballwechsel & Notizen ----------
+/** Ändert die Ballwechsel/Notizen eines Spiels über eine Funktion auf einer Kopie */
+function editGame(id, fn) {
+  change(() => {
+    const g = game(id); if (!g) return;
+    const copy = { rallies: g.rallies.map((r) => ({ ...r })), notes: g.notes.map((n) => ({ ...n })) };
+    fn(copy);
+    Object.assign(g, cleanGame({ ...g, ...copy }), { updatedAt: Date.now() });
+  });
+}
+export function addRally(gid, r) { const id = uid(); editGame(gid, (c) => c.rallies.push({ ...r, id })); return id; }
+export function updateRally(gid, rid, patch) { editGame(gid, (c) => { const r = c.rallies.find((x) => x.id === rid); if (r) Object.assign(r, patch); }); }
+export function deleteRally(gid, rid) {
+  const g = game(gid), old = g?.rallies.find((x) => x.id === rid);
+  editGame(gid, (c) => { c.rallies = c.rallies.filter((x) => x.id !== rid); });
+  return () => { if (old && game(gid)) editGame(gid, (c) => c.rallies.push({ ...old })); };
+}
+export function addNote(gid, n) { const id = uid(); editGame(gid, (c) => c.notes.push({ ...n, id })); return id; }
+export function updateNote(gid, nid, patch) { editGame(gid, (c) => { const n = c.notes.find((x) => x.id === nid); if (n) Object.assign(n, patch); }); }
+export function deleteNote(gid, nid) {
+  const g = game(gid), old = g?.notes.find((x) => x.id === nid);
+  editGame(gid, (c) => { c.notes = c.notes.filter((x) => x.id !== nid); });
+  return () => { if (old && game(gid)) editGame(gid, (c) => c.notes.push({ ...old })); };
+}
+
+// ---------- Einstellungen ----------
+export const settings = () => S.data.settings;
+export function setSettings(patch) {
+  change((d) => { d.settings = cleanSettings({ ...d.settings, ...patch, updatedAt: Date.now() }); });
+}
+
 // ---------- Löschvermerke ----------
 function tomb(id) { S.data.deleted[id] = Date.now(); }
 function untomb(id) { delete S.data.deleted[id]; }
@@ -190,6 +247,7 @@ const stamp = (x) => x.updatedAt || x.createdAt || 0;
 /** Zusammenführen ohne Rückfrage (auch für den Cloud-Abgleich): neuere Fassung gewinnt, Gelöschtes bleibt gelöscht. */
 export function mergeInto(d, inc, mode = 'merge') {
   if (mode === 'replace') { Object.assign(d, inc); return; }
+  if ((inc.settings?.updatedAt || 0) > (d.settings?.updatedAt || 0)) d.settings = inc.settings;
   for (const [id, ts] of Object.entries(inc.deleted || {})) d.deleted[id] = Math.max(ts, d.deleted[id] || 0);
   const dead = (x) => d.deleted[x.id] != null && d.deleted[x.id] >= stamp(x);
   for (const k of LISTS) {

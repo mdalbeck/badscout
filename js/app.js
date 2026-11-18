@@ -225,7 +225,8 @@ function toggleLang() {
 
 // ================= Tastenkürzel: Anzeige an/aus + Übersicht =================
 const keyGroups = () => [
-  [t('nav.games'), [['N', t('gm.new')], ['/', t('keys.search')], ['E', t('keys.edit')], ['Esc', t('keys.back')], [`${t('key.ctrl')} + ↵`, t('keys.save')]]],
+  [t('nav.games'), [['N', t('gm.new')], ['/', t('keys.search')], ['Esc', t('keys.back')], [`${t('key.ctrl')} + ↵`, t('keys.save')]]],
+  [t('keys.gMark'), [['Q W E R T', t('an.pointUs')], ['A S D F G', t('an.pointThem')], ['B', t('an.start')], ['N', t('an.noteNew')], ['1 – 9', t('an.shot')], ['Z / ⌫', t('an.undo')]]],
   [t('keys.gVideo'), [[t('key.space') + ' / K', t('vd.play')], ['← / →', t('vd.skip5')], ['⇧ + ← / →', t('vd.skip1')], [', / .', t('vd.frames')], ['− / +', t('vd.rate')], ['U', t('vd.file')], ['Y', t('vd.yt')], ['B', t('vd.bc')]]],
   [t('nav.backup'), [['E', t('bk.export')], ['I', t('bk.import')]]],
 ];

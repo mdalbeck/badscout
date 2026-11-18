@@ -329,11 +329,11 @@ function playerPanel(host, gameId, v, sig) {
         <span class="grow"></span>
         <div class="vrates" title="${esc(t('vd.rate'))} (− / +)"></div>
       </div>
-      <input class="vseek" type="range" min="0" max="1000" value="0" step="1" aria-label="${esc(t('vd.seek'))}">
+      <div class="vtl" aria-label="${esc(t('vd.seek'))}"><div class="vtl-items"></div><div class="vtl-head"></div><div class="vtl-tip hidden"></div></div>
     </section>
     <div class="vinfo"></div>`;
-  const stage = $('.vstage', host), slot = $('.vslot', host), msgEl = $('.vmsg', host), seek = $('.vseek', host);
-  let p = null, rate = 1, raf = 0, dead = false, dragging = false, waitDbx = false;
+  const stage = $('.vstage', host), slot = $('.vslot', host), msgEl = $('.vmsg', host), tl = $('.vtl', host);
+  let p = null, rate = 1, raf = 0, dead = false, waitDbx = false, items = [], drawnDur = 0;
   const msg = (html) => { msgEl.innerHTML = html; msgEl.classList.toggle('hidden', !html); };
 
   const renderRates = () => {
@@ -344,15 +344,46 @@ function playerPanel(host, gameId, v, sig) {
   const setRate = (r) => { rate = r; p?.setRate(r); renderRates(); };
   const stepRate = (dir) => { const rs = p?.rates || [1]; const i = rs.indexOf(rate); setRate(rs[Math.max(0, Math.min(rs.length - 1, i + dir))]); };
   const syncPlay = () => { const b = $('[data-v=toggle]', host); if (b && p) b.innerHTML = icon(p.paused() ? 'play' : 'pause', 20); };
+  // Zeitleiste über das ganze Video: Bereiche (Ballwechsel) und Punkte (Notizen) – die Analyse liefert sie
+  const dur = () => p?.duration() || v.duration || Math.max(0, ...items.map((x) => x.t1 ?? x.t)) || 0;
+  const pct = (s, d) => `${Math.max(0, Math.min(100, (s / d) * 100)).toFixed(3)}%`;
+  const drawItems = () => {
+    const d = dur();
+    drawnDur = d;
+    $('.vtl-items', host).innerHTML = !d ? '' : items.map((x) => x.t1 != null
+      ? `<i class="vtl-r ${x.cls || ''}" style="left:${pct(x.t0, d)};width:max(2px, calc(${pct(x.t1, d)} - ${pct(x.t0, d)}))" title="${esc(x.title || '')}"></i>`
+      : `<i class="vtl-p ${x.cls || ''}" style="left:${pct(x.t, d)}" title="${esc(x.title || '')}"></i>`).join('');
+  };
+  const tickSubs = new Set();
   const tick = () => {
     if (dead) return;
     if (p) {
-      const tm = p.time(), d = p.duration();
+      const tm = p.time(), d = dur();
       $('.vtime', host).textContent = `${fmtTime(tm)} / ${fmtTime(d)}`;
-      if (!dragging && d) seek.value = Math.round((tm / d) * 1000);
+      if (d) $('.vtl-head', host).style.left = pct(tm, d);
+      if (d !== drawnDur) drawItems();
+      tickSubs.forEach((fn) => fn(tm));
     }
     raf = requestAnimationFrame(tick);
   };
+  // Klicken oder Ziehen auf der Zeitleiste springt an die Stelle
+  const atX = (e) => { const r = tl.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * dur(); };
+  const tip = $('.vtl-tip', host);
+  tl.onpointerdown = (e) => {
+    if (!p || !dur()) return;
+    tl.setPointerCapture(e.pointerId);
+    p.seek(atX(e));
+    tl.onpointermove = (ev) => p.seek(atX(ev));
+  };
+  tl.onpointerup = tl.onpointercancel = () => { tl.onpointermove = null; };
+  tl.addEventListener('mousemove', (e) => {
+    if (!dur()) return;
+    const r = tl.getBoundingClientRect();
+    tip.textContent = fmtTime(atX(e));
+    tip.style.left = `${e.clientX - r.left}px`;
+    tip.classList.toggle('hidden', false);
+  });
+  tl.addEventListener('mouseleave', () => tip.classList.toggle('hidden', true));
   const act = {
     toggle: () => { if (!p) return; if (p.paused()) p.play(); else p.pause(); },
     back: (s = 5) => p?.seek(p.time() - s),
@@ -361,10 +392,8 @@ function playerPanel(host, gameId, v, sig) {
     ff: () => { if (!p) return; p.pause(); p.seek(p.time() + FRAME); },
   };
   $$('[data-v]', host).forEach((b) => (b.onclick = () => act[b.dataset.v]()));
-  seek.oninput = () => { dragging = true; const d = p?.duration(); if (d) p.seek((seek.value / 1000) * d); };
-  seek.onchange = () => { dragging = false; };
   const on = {
-    ready: () => { msg(''); renderRates(); p.setRate(rate); syncPlay(); },
+    ready: () => { msg(''); renderRates(); p.setRate(rate); syncPlay(); drawItems(); },
     state: syncPlay,
     error: (kind) => msg(`<p>${esc(t(kind === 'embed' ? 'vd.errEmbed' : kind === 'yt' ? 'vd.errYt' : 'vd.errFile'))}</p>${v.kind === 'yt' ? `<a class="btn" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=${esc(v.ytId)}">${icon('external', 16)}<span>${esc(t('vd.openYt'))}</span></a>` : ''}`),
   };
@@ -433,8 +462,21 @@ function playerPanel(host, gameId, v, sig) {
   raf = requestAnimationFrame(tick);
   stage.tabIndex = -1;
 
+  /** Steuerung für die Analyse (Zeitleiste, Markieren) */
+  const ctl = {
+    ready: () => !!p,
+    time: () => p?.time() || 0,
+    duration: dur,
+    paused: () => !p || p.paused(),
+    play: () => p?.play(),
+    pause: () => p?.pause(),
+    seek: (x) => p?.seek(x),
+    setItems: (list) => { items = list; drawItems(); },
+    onTick: (fn) => { tickSubs.add(fn); return () => tickSubs.delete(fn); },
+  };
   return {
     sig,
+    ctl,
     refresh() {
       renderInfo();
       // Beim Start ist Dropbox oft erst kurz nach der Seite verbunden – dann jetzt laden

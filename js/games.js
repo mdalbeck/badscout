@@ -5,6 +5,7 @@ import { icon } from './icons.js';
 import { t, fmtDay } from './i18n.js';
 import { $, $$, esc, toast } from './ui.js';
 import * as Video from './video.js';
+import { mountAnalysis, resultText } from './analysis.js';
 
 const F = { q: '' };
 
@@ -20,7 +21,7 @@ export function gameRow(g) {
     <span class="gmthumb">${icon('video', 18)}${th ? `<img src="${esc(th)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>
     <span class="dday"><b>${esc(fmtDay(g.day, { day: 'numeric', month: 'numeric' }))}</b><span>${esc(g.day.slice(0, 4))}</span></span>
     <span class="exrow-b"><b><span class="ours">${esc(oursText(g))}</span> <span class="muted vs">${esc(t('gm.vs'))}</span> ${esc(oppText(g))}</b>
-      <span class="exmeta"><span>${esc(kindText(g))}</span>${g.event ? `<span>${esc(g.event)}</span>` : ''}${g.video ? '' : `<span>${icon('video', 13)}${esc(t('gm.noVideo'))}</span>`}</span></span>
+      <span class="exmeta">${g.rallies.length ? `<span class="res mono">${esc(resultText(g))}</span>` : ''}<span>${esc(kindText(g))}</span>${g.event ? `<span>${esc(g.event)}</span>` : ''}${g.video ? '' : `<span>${icon('video', 13)}${esc(t('gm.noVideo'))}</span>`}</span></span>
     <span class="badge ${g.done ? 'ok' : ''}">${esc(t(g.done ? 'gm.done' : 'gm.open'))}</span></a>`;
 }
 
@@ -76,22 +77,14 @@ const notFound = (el) => { el.innerHTML = `<div class="pagehead"><a class="back"
 
 export function gameView(el, id) {
   let vp = null; // Video-Bereich bleibt beim Auffrischen stehen (Player läuft weiter)
+  let an = null; // Analyse (Markier-Knöpfe, Spielstand, Notizen) – hängt am Player
   const head = (g) => `
         <a class="back" href="#/games">${icon('back', 16)}${esc(t('nav.games'))}<kbd>Esc</kbd></a>
-        <h1><span class="eyebrow">${esc(fmtDay(g.day))}${g.event ? ` · ${esc(g.event)}` : ''}</span><span class="ours">${esc(oursText(g))}</span> <span class="muted vs">${esc(t('gm.vs'))}</span> ${esc(oppText(g))}</h1>
+        <h1><span class="eyebrow">${esc([fmtDay(g.day), g.event, kindText(g)].filter(Boolean).join(' · '))}</span><span class="ours">${esc(oursText(g))}</span> <span class="muted vs">${esc(t('gm.vs'))}</span> ${esc(oppText(g))}</h1>
         <div class="acts">
-          <a class="btn" id="gm-edit" href="#/game/${g.id}/edit">${icon('edit', 18)}<span>${esc(t('gm.edit'))}</span><kbd>E</kbd></a>
+          <a class="btn" id="gm-edit" href="#/game/${g.id}/edit">${icon('edit', 18)}<span>${esc(t('gm.edit'))}</span></a>
           <button class="danger ghost" id="gm-del">${icon('trash', 18)}<span>${esc(t('gm.delete'))}</span></button>
         </div>`;
-  const facts = (g) => `
-          <dl>
-            <dt>${esc(t('gm.day'))}</dt><dd>${esc(fmtDay(g.day))}</dd>
-            ${g.event ? `<dt>${esc(t('gm.event'))}</dt><dd>${esc(g.event)}</dd>` : ''}
-            <dt>${esc(t('gm.kind'))}</dt><dd>${esc(kindText(g))}</dd>
-            <dt>${esc(t('gm.scoring'))}</dt><dd>${esc(t(g.scoring === 15 ? 'gm.s15' : 'gm.s21'))}</dd>
-            <dt>${esc(t('gm.ours'))}</dt><dd>${g.ours.map((pid) => `<a href="#/player/${pid}">${esc(BT.nameOf(pid, g))}</a>`).join('<br>')}</dd>
-            <dt>${esc(t('gm.opp'))}</dt><dd>${g.opp.filter(Boolean).map(esc).join('<br>') || '–'}</dd>
-          </dl>`;
   const bindHead = (g) => {
     $('#gm-del', el).onclick = () => {
       const delMsg = g.video?.kind === 'file' ? t('gm.deleteConfirmVideo') : t('gm.deleteConfirm');
@@ -106,34 +99,36 @@ export function gameView(el, id) {
   };
   const render = () => {
     const g = St.game(id);
-    if (!g) { vp?.destroy(); vp = null; return notFound(el); }
+    if (!g) { vp?.destroy(); an?.destroy(); vp = an = null; return notFound(el); }
     if (!$('#gm-head', el)) {
       el.innerHTML = `
       <div class="pagehead" id="gm-head"></div>
       <div class="gmlayout">
-        <div class="gmmain" id="gm-video"></div>
-        <aside class="panel exfacts" id="gm-facts"></aside>
+        <div class="gmmain"><div id="gm-video"></div><div id="gm-marks"></div></div>
+        <aside class="anside" id="gm-side"></aside>
       </div>`;
     }
     $('#gm-head', el).innerHTML = head(g);
-    $('#gm-facts', el).innerHTML = facts(g);
     bindHead(g);
     // Video-Bereich nur neu aufbauen, wenn sich das Video selbst geändert hat
     const v = g.video;
     const sig = v ? JSON.stringify([v.kind, v.id || v.ytId, v.dbx]) : 'none';
-    if (!vp || vp.sig !== sig) { vp?.destroy(); vp = Video.videoPanel($('#gm-video', el), id); }
-    else vp.refresh?.();
+    if (!vp || vp.sig !== sig) {
+      vp?.destroy(); an?.destroy();
+      vp = Video.videoPanel($('#gm-video', el), id);
+      an = mountAnalysis({ marks: $('#gm-marks', el), side: $('#gm-side', el) }, id, vp.ctl || null);
+    } else { vp.refresh?.(); an.refresh(); }
   };
   render();
   return {
     refresh: render,
     key(e) {
+      if (an?.key(e)) return true;
       if (vp?.key(e)) return true;
       if (e.key === 'Escape') { location.hash = '#/games'; return true; }
-      if ((e.key === 'e' || e.key === 'E') && St.game(id)) { location.hash = `#/game/${id}/edit`; return true; }
       return false;
     },
-    destroy() { vp?.destroy(); vp = null; },
+    destroy() { vp?.destroy(); an?.destroy(); vp = an = null; },
   };
 }
 
