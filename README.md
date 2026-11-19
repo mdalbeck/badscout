@@ -8,11 +8,13 @@ Record your own players’ matches rally by rally and review them. Local-first: 
 ## Status
 Steps 1–4 done: analysis per match (score course per game, how points are won, error rate, shots, players in doubles, coach comment), player page across matches and seasons with trend charts, printable match and player reports (PDF via the print dialog), rally marking (who wins the point and how, keys Q–T / A–G, editable buttons, optional shot and player), automatic score (21 or 15, sets, change of ends), timeline over the whole video, notes at a time (keep playing or pause), rally list for corrections, videos (upload in 8 MB pieces to `badscout-videos/`, streaming via Dropbox link, YouTube, take over from BadClip by copying inside Dropbox), player with slow motion and frame steps, matches (date, event, singles/doubles, scoring to 21 or 15, our players from BadTeam, opponents by name), player pages,
 Dropbox sync, backup, tour, German/English, light/dark.
-Next: transfer to BadClip (mailbox), then join the Bad Apps family.
+Step 5 done: transfer to BadClip – whole match or selected moments as scenes (player tag, kind of point, shot), optionally as a session; BadScout writes into BadClip's mailbox `badclip-eingang/`, BadClip picks it up. Step 6 done: BadScout is part of the Bad Apps family (green slot, magnifier glyph).
+Later: automatic rally detection (AI), live analysis courtside, reports via link to BadPlayer.
 
 ## How it works with the other apps
 - Players come from BadTeam: BadScout only **reads** `badteam-daten.json` (players without contact data, groups) – it never writes it.
-- Sending things to BadClip will go through a mailbox folder that BadClip picks up (planned).
+- Sending to BadClip goes through BadClip's mailbox folder `badclip-eingang/*.json`, which BadClip picks up; BadScout never writes BadClip's file.
+- Videos taken over from BadClip are copied inside Dropbox (`badclip-videos/` → `badscout-videos/`); BadScout only deletes its own copies.
 
 ## Files
 - `index.html`, `styles.css`: user interface (accent green `#2ee69b`)

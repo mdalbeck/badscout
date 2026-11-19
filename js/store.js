@@ -103,6 +103,7 @@ const cleanGame = (x) => ({
   notes: (Array.isArray(x.notes) ? x.notes : []).filter((n) => n?.id).map(cleanNote).sort((a, b) => a.t - b.t),
   done: !!x.done,
   comment: String(x.comment ?? '').trim(),
+  sent: x.sent && typeof x.sent === 'object' ? { at: +x.sent.at || 0, n: +x.sent.n || 0 } : null,
 });
 
 function normalize(d) {

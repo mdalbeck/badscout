@@ -9,6 +9,7 @@ import { compute, resultText, typeOf, typeName, types, shotName, sidePlayers, ac
 import { oursText, oppText, kindText } from './games.js';
 import { lineChart, legend, barRows, bindTips } from './charts.js';
 import { fmtTime } from './video.js';
+import { transferDialog } from './transfer.js';
 
 // ================= Zahlen =================
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
@@ -133,7 +134,7 @@ export function gameStatsView(el, id) {
     const head = `<div class="pagehead">
         <a class="back" href="#/game/${id}">${icon('back', 16)}${esc(t('st.toGame'))}<kbd>Esc</kbd></a>
         <h1><span class="eyebrow">${esc([fmtDay(game.day), game.event, kindText(game)].filter(Boolean).join(' · '))}</span><span class="ours">${esc(oursText(game))}</span> <span class="muted vs">${esc(t('gm.vs'))}</span> ${esc(oppText(game))}</h1>
-        <div class="acts"><a class="btn primary" id="st-print" href="#/report/game/${id}">${icon('printer', 18)}<span>${esc(t('st.report'))}</span><kbd>D</kbd></a></div>
+        <div class="acts">${game.video ? `<button id="st-clip">${icon('library', 18)}<span>${esc(t('tr.short'))}</span></button>` : ''}<a class="btn primary" id="st-print" href="#/report/game/${id}">${icon('printer', 18)}<span>${esc(t('st.report'))}</span><kbd>D</kbd></a></div>
       </div>`;
     if (!s.n) { el.innerHTML = `${head}<div class="emptybig">${icon('chart', 44)}<p>${esc(t('st.none'))}</p><p><a class="btn primary" href="#/game/${id}">${esc(t('st.toGame'))}</a></p></div>`; return; }
     const width = Math.min(1060, (el.clientWidth || 900)) - 44;
@@ -144,6 +145,8 @@ export function gameStatsView(el, id) {
         <textarea id="st-comment" rows="4" placeholder="${esc(t('st.commentPh'))}">${esc(game.comment || '')}</textarea>
         <p class="muted small">${esc(t('st.commentHint'))}</p></section>
       ${game.notes.length ? `<section class="panel wide"><h2>${icon('note', 20)} ${esc(t('an.notes'))}</h2><div class="nt-list">${game.notes.map((n) => `<div class="nt"><a class="tchip mono btn" href="#/game/${id}">${fmtTime(n.t)}</a><span class="nt-text pre">${esc(n.text)}</span></div>`).join('')}</div></section>` : ''}`;
+    const clip = $('#st-clip', el);
+    if (clip) clip.onclick = () => transferDialog(id);
     const ta = $('#st-comment', el);
     ta.onchange = () => St.updateGame(id, { comment: ta.value });
     hide = bindTips(el);

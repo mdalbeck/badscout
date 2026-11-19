@@ -1,5 +1,5 @@
 // Bad-Apps-Familie: App-Wechsler (kleiner Kreis-Knopf oben rechts).
-// Diese Datei ist in allen Bad Apps gleich (BadClip, BadPlan, BadTeam, BadScout, Startseite) – bei Änderungen überall kopieren.
+// Diese Datei ist in allen Bad Apps gleich (BadClip, BadPlan, BadTeam, BadScout, BadPlayer, Startseite) – bei Änderungen überall kopieren.
 
 export const HOME_URL = 'https://badapps.mpdalbeck.workers.dev/';
 
@@ -11,7 +11,7 @@ export const APPS = [
     text: { de: 'Spielstand, Turniere, Ranglisten', en: 'Scores, tournaments, rankings' } },
   { id: 'badplan', name: 'BadPlan', color: '#c6f432', glyph: 'clock', url: 'https://badplan.mpdalbeck.workers.dev/',
     text: { de: 'Trainings planen und in der Halle durchführen', en: 'Plan sessions and run them in the hall' } },
-  { id: 'badscout', name: 'BadScout', color: '#2ee69b', glyph: 'lens',
+  { id: 'badscout', name: 'BadScout', color: '#2ee69b', glyph: 'lens', url: 'https://badscout.mpdalbeck.workers.dev/',
     text: { de: 'Spiele analysieren', en: 'Analyse matches' } },
   { id: 'badmove', name: 'BadMove', color: '#22d3ee', glyph: 'zigzag',
     text: { de: 'Laufwege und Footwork-Muster', en: 'Footwork patterns' } },
@@ -19,7 +19,8 @@ export const APPS = [
     text: { de: 'Gruppen, Anwesenheit, Mannschaften', en: 'Groups, attendance, teams' } },
   { id: 'badfit', name: 'BadFit', color: '#b07cff', glyph: 'pulse',
     text: { de: 'Athletik, Kraft und Prehab', en: 'Fitness, strength and prehab' } },
-  { id: 'free2', color: '#ff4fd8', free: true, text: { de: 'Platz für eine neue App', en: 'Room for a new app' } },
+  { id: 'badplayer', name: 'BadPlayer', color: '#ff4fd8', glyph: 'player', url: 'https://badplayer.mpdalbeck.workers.dev/',
+    text: { de: 'Tagebuch, Aufgaben und Clips für Spieler', en: 'Diary, tasks and clips for players' } },
 ];
 
 const INK = '#0b0d10';
@@ -36,6 +37,7 @@ export function glyph(app) {
     case 'cup': return `<path d="M-46 -54H46V-16A46 46 0 0 1 -46 -16Z" fill="${INK}"/><path d="M0 30V48M-30 54H30" ${st}/>`;
     case 'zigzag': return `<path d="M-52 42L-16 -6L14 22L48 -30" ${st}/><path d="M18 -36H52V-2" ${st}/>`;
     case 'pulse': return `<path d="M-64 4H-34L-15 -40L8 44L27 4H64" ${st} stroke-width="19"/>`;
+    case 'player': return `<g fill="${INK}"><circle cx="0" cy="-28" r="25"/><path d="M-47 52a47 47 0 0 1 94 0z"/></g>`;
     case 'lens': return `<circle cx="-12" cy="-12" r="34" ${st}/><path d="M13 13L46 46" fill="none" stroke="${INK}" stroke-width="26" stroke-linecap="round"/>`;
     case 'team': return `<g fill="${INK}"><circle cx="-40" cy="16" r="21"/><circle cx="40" cy="16" r="21"/><circle cx="0" cy="-26" r="23"/></g>`;
   }

@@ -6,6 +6,7 @@ import { t, fmtDay } from './i18n.js';
 import { $, $$, esc, toast } from './ui.js';
 import * as Video from './video.js';
 import { mountAnalysis, resultText } from './analysis.js';
+import { transferDialog } from './transfer.js';
 
 const F = { q: '' };
 
@@ -83,10 +84,13 @@ export function gameView(el, id) {
         <h1><span class="eyebrow">${esc([fmtDay(g.day), g.event, kindText(g)].filter(Boolean).join(' · '))}</span><span class="ours">${esc(oursText(g))}</span> <span class="muted vs">${esc(t('gm.vs'))}</span> ${esc(oppText(g))}</h1>
         <div class="acts">
           ${g.rallies.length ? `<a class="btn primary" id="gm-stats" href="#/game/${g.id}/stats">${icon('chart', 18)}<span>${esc(t('st.title'))}</span></a>` : ''}
+          ${g.video && (g.rallies.length || g.notes.length) ? `<button id="gm-clip" title="${esc(t('tr.title'))}">${icon('library', 18)}<span>${esc(t('tr.short'))}</span></button>` : ''}
           <a class="btn" id="gm-edit" href="#/game/${g.id}/edit">${icon('edit', 18)}<span>${esc(t('gm.edit'))}</span></a>
           <button class="danger ghost" id="gm-del">${icon('trash', 18)}<span>${esc(t('gm.delete'))}</span></button>
         </div>`;
   const bindHead = (g) => {
+    const clip = $('#gm-clip', el);
+    if (clip) clip.onclick = () => transferDialog(id);
     $('#gm-del', el).onclick = () => {
       const delMsg = g.video?.kind === 'file' ? t('gm.deleteConfirmVideo') : t('gm.deleteConfirm');
       if (!confirm(delMsg)) return;

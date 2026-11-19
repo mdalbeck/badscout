@@ -201,3 +201,13 @@ export async function copyFile(from, to) {
 export async function deleteVideo(id) {
   try { await apiJson('delete_v2', { path: videoPath(id) }); } catch (e) { if (e.name !== 'NotFound') throw e; }
 }
+
+// ---------- BadClips Briefkasten: Dropbox › Apps › Bad Apps › badclip-eingang/*.json (BadClip holt ab und löscht) ----------
+export async function putInbox(id, text) {
+  const r = await call(`${CONTENT}/files/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': JSON.stringify({ path: `/badclip-eingang/${id}.json`, mode: { '.tag': 'add' }, autorename: true, mute: true }) },
+    body: new Blob([text]),
+  });
+  if (!r.ok) throw await callError(r);
+}

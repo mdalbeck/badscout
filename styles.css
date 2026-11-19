@@ -1139,3 +1139,16 @@ dialog .chips .chip { margin: 0; }
 .sheet .st-set { break-inside: avoid; }
 .p-foot { margin-top: 16px; border-top: 1px solid #ddd; padding-top: 6px; }
 @media print { .c-tip { display: none !important; } .sheet .chart svg { width: 100%; height: auto; } }
+
+/* An BadClip übertragen */
+.tr-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tr-list { max-height: 42vh; }
+.tr-row { min-height: 40px; gap: 10px; padding: 6px 10px; border-left: 3px solid var(--us); }
+.tr-row.rl-them { border-left-color: var(--them); }
+.tr-row.tr-note { border-left-color: var(--notec); }
+.tr-row input { flex: none; }
+.tr-row .rl-b b { display: inline-flex; align-items: center; gap: 4px; }
+#tr-sname:disabled { opacity: .5; }
+.tr-row { flex: none; }
+.tr-row > span.tchip, .tr-row > span.rl-sc { flex: none; display: inline-flex; align-items: center; }
+.tr-row > span.rl-b { flex: 1; min-width: 0; }
