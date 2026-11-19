@@ -21,11 +21,14 @@ export const VERSION = 1;
  *     notes: [{ id, t, text }]
  *     done: false, createdAt, updatedAt }
  * settings   Einstellungen fürs Markieren (für alle Spiele): { types: [{ id, name, kind: 'win' | 'err' }], shots: ['…'], notePause, updatedAt }
+ * players    Weitere Spieler, die nicht in BadTeam sind (Gäste, Gegner, Profis …) – nur in BadScout
+ *   { id, name, group: 'Profi' | 'Gegner' | … | '', note, createdAt, updatedAt }
+ *   Im Spiel: ours (Seite 1) und oppIds (Seite 2, parallel zu opp) verweisen auf BadTeam- oder diese Spieler.
  * deleted    Gelöschtes: { id: Zeitpunkt } – damit Löschungen beim Abgleich zwischen Geräten nicht wieder auftauchen
  */
 
-const LISTS = ['games'];
-const empty = () => ({ games: [], settings: defaultSettings(), deleted: {} });
+const LISTS = ['games', 'players'];
+const empty = () => ({ games: [], players: [], settings: defaultSettings(), deleted: {} });
 
 // Grundausstattung der Markier-Knöpfe (Namen leer = Text aus i18n)
 export const DEFAULT_TYPES = [
@@ -89,6 +92,7 @@ function kvPut(pairs) {
 function str(v) { return String(v ?? '').trim(); }
 const num = (v) => (Number.isFinite(+v) ? Math.max(0, Math.round(+v * 100) / 100) : 0);
 const cleanRally = (r) => ({ id: r.id, t0: num(r.t0), t1: num(r.t1), win: r.win === 'them' ? 'them' : 'us', type: String(r.type || ''), shot: str(r.shot), by: str(r.by) });
+const cleanPerson = (x) => ({ name: str(x.name), group: str(x.group), note: str(x.note) });
 const cleanNote = (n) => ({ id: n.id, t: num(n.t), text: str(n.text) });
 const cleanGame = (x) => ({
   day: /^\d{4}-\d{2}-\d{2}$/.test(x.day || '') ? x.day : todayIso(),
@@ -98,6 +102,7 @@ const cleanGame = (x) => ({
   ours: [...new Set(Array.isArray(x.ours) ? x.ours.filter(Boolean) : [])],
   names: x.names && typeof x.names === 'object' ? { ...x.names } : {},
   opp: (Array.isArray(x.opp) ? x.opp : []).map(str),
+  oppIds: (Array.isArray(x.oppIds) ? x.oppIds : []).map((v) => String(v || '')),
   video: x.video && typeof x.video === 'object' ? x.video : null,
   rallies: (Array.isArray(x.rallies) ? x.rallies : []).filter((r) => r?.id).map(cleanRally).sort((a, b) => a.t1 - b.t1),
   notes: (Array.isArray(x.notes) ? x.notes : []).filter((n) => n?.id).map(cleanNote).sort((a, b) => a.t - b.t),
@@ -110,6 +115,7 @@ function normalize(d) {
   const out = empty();
   for (const k of LISTS) out[k] = Array.isArray(d?.[k]) ? d[k].filter((x) => x && x.id) : [];
   out.games = out.games.map((g) => ({ id: g.id, ...cleanGame(g), createdAt: g.createdAt || 0, updatedAt: g.updatedAt || 0 }));
+  out.players = out.players.map((p) => ({ id: p.id, ...cleanPerson(p), createdAt: p.createdAt || 0, updatedAt: p.updatedAt || 0 }));
   out.settings = cleanSettings(d?.settings);
   // Alte Löschvermerke vergessen
   const cutoff = Date.now() - TOMB_DAYS * 864e5;
@@ -175,6 +181,22 @@ export async function delFile(id) {
 const pad = (n) => String(n).padStart(2, '0');
 export const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const todayIso = () => iso(new Date());
+
+// ---------- Weitere Spieler (nicht aus BadTeam) ----------
+export const player = (id) => S.data.players.find((x) => x.id === id);
+export const playersSorted = () => [...S.data.players].sort((a, b) => (!a.group - !b.group) || (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+export function addPlayer(x) {
+  const id = 'x-' + uid(), now = Date.now();
+  change((d) => d.players.push({ id, ...cleanPerson(x), createdAt: now, updatedAt: now }));
+  return id;
+}
+export function updatePlayer(id, x) {
+  change(() => { const p = player(id); if (p) Object.assign(p, cleanPerson({ ...p, ...x }), { updatedAt: Date.now() }); });
+}
+/** Löscht einen weiteren Spieler. In seinen Spielen bleibt sein Name stehen. */
+export function deletePlayer(id) {
+  change((d) => { tomb(id); d.players = d.players.filter((x) => x.id !== id); });
+}
 
 // ---------- Spiele ----------
 export const game = (id) => S.data.games.find((x) => x.id === id);

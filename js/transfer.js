@@ -8,6 +8,7 @@ import { t, fmtDay, fmtDateTime } from './i18n.js';
 import { $, $$, esc, toast, modal, closeModal } from './ui.js';
 import { compute, typeOf, typeName, shotName, sidePlayers, byName } from './analysis.js';
 import { oursText, oppText, kindText } from './games.js';
+import * as People from './people.js';
 import { fmtTime } from './video.js';
 
 export const BADCLIP_URL = 'https://badclip.mpdalbeck.workers.dev/';
@@ -80,11 +81,11 @@ export function transferDialog(gameId) {
       if (nb) nb.onchange = showCount;
     } else {
       $('#tr-body', d).innerHTML = `<div class="tr-quick">
-          <button class="chip" data-q="ourWin">${esc(t('st.ourWin'))}</button><button class="chip" data-q="ourErr">${esc(t('st.ourErr'))}</button>
-          <button class="chip" data-q="oppWin">${esc(t('st.oppWin'))}</button>${game.notes.length ? `<button class="chip" data-q="notes">${esc(t('an.notes'))}</button>` : ''}
+          <button class="chip" data-q="ourWin">${esc(t('st.winOf', { who: People.sideShort(game, 'us') }))}</button><button class="chip" data-q="ourErr">${esc(t('st.errOf', { who: People.sideShort(game, 'us') }))}</button>
+          <button class="chip" data-q="oppWin">${esc(t('st.winOf', { who: People.sideShort(game, 'them') }))}</button>${game.notes.length ? `<button class="chip" data-q="notes">${esc(t('an.notes'))}</button>` : ''}
           <button class="chip ghost" data-q="none">${esc(t('tr.none'))}</button></div>
         <div class="picklist tr-list">
-          ${[...c.rows.map((row) => ({ k: 'r', id: row.r.id, t: row.r.t0, html: `<span class="rl-sc mono">${row.extra ? '–' : `${row.us}:${row.them}`}</span><span class="rl-b"><b>${esc(typeName(typeOf(row.r.type)))}</b><small>${esc(t(row.r.win === 'us' ? 'an.pointUs' : 'an.pointThem'))}${row.r.shot ? ` · ${esc(shotName(row.r.shot))}` : ''}</small></span>`, cls: `rl-${row.r.win}` })),
+          ${[...c.rows.map((row) => ({ k: 'r', id: row.r.id, t: row.r.t0, html: `<span class="rl-sc mono">${row.extra ? '–' : `${row.us}:${row.them}`}</span><span class="rl-b"><b>${esc(typeName(typeOf(row.r.type)))}</b><small>${esc(People.pointLabel(game, row.r.win))}${row.r.shot ? ` · ${esc(shotName(row.r.shot))}` : ''}</small></span>`, cls: `rl-${row.r.win}` })),
             ...game.notes.map((n) => ({ k: 'n', id: n.id, t: n.t, html: `<span class="rl-b"><b>${icon('note', 14)} ${esc(n.text)}</b></span>`, cls: 'tr-note' }))]
             .sort((a, b) => a.t - b.t).map((x) => `<label class="pickrow tr-row ${x.cls}"><input type="checkbox" data-k="${x.k}" value="${esc(x.id)}" ${sel[x.k].has(x.id) ? 'checked' : ''}>
               <span class="tchip mono">${fmtTime(x.t)}</span>${x.html}</label>`).join('')}

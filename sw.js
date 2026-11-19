@@ -1,6 +1,6 @@
 // Einfacher Service Worker: App-Hülle offline verfügbar (Netzwerk zuerst, Cache als Rückfall).
-const CACHE = 'bs-shell-v6';
-const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'js/store.js', 'js/icons.js', 'js/i18n.js', 'js/ui.js', 'js/games.js', 'js/players.js', 'js/badteam.js', 'js/video.js', 'js/analysis.js', 'js/charts.js', 'js/stats.js', 'js/transfer.js', 'js/sync.js', 'js/dropbox.js', 'js/config.js', 'js/tour.js', 'js/family.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'bs-shell-v7';
+const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'js/store.js', 'js/icons.js', 'js/i18n.js', 'js/ui.js', 'js/games.js', 'js/players.js', 'js/badteam.js', 'js/people.js', 'js/video.js', 'js/analysis.js', 'js/charts.js', 'js/stats.js', 'js/transfer.js', 'js/sync.js', 'js/dropbox.js', 'js/config.js', 'js/tour.js', 'js/family.js', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

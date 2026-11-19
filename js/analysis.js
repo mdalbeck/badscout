@@ -2,6 +2,7 @@
 // Notizen an Zeitstellen, Liste der Ballwechsel zum Korrigieren. Die Zeitleiste zeichnet der Player (video.js).
 import * as St from './store.js';
 import * as BT from './badteam.js';
+import * as People from './people.js';
 import { icon } from './icons.js';
 import { t } from './i18n.js';
 import { $, $$, esc, toast, modal, closeModal } from './ui.js';
@@ -55,10 +56,10 @@ const KEYS_THEM = ['a', 's', 'd', 'f', 'g'];
 
 /** Spieler einer Seite: [{ id, name }] – unsere aus BadTeam, Gegner als o0/o1 */
 export function sidePlayers(g, side) {
-  if (side === 'us') return g.ours.map((id) => ({ id, name: BT.nameOf(id, g) }));
+  if (side === 'us') return g.ours.map((id) => ({ id, name: People.nameOf(id, g) }));
   return g.opp.map((name, i) => ({ id: `o${i}`, name: name || `${t('gm.opp')} ${i + 1}` })).slice(0, g.kind === 'double' ? 2 : 1);
 }
-export const byName = (g, by) => (!by ? '' : by.startsWith('o') && by.length === 2 ? sidePlayers(g, 'them').find((p) => p.id === by)?.name || '' : BT.nameOf(by, g));
+export const byName = (g, by) => (!by ? '' : by.startsWith('o') && by.length === 2 ? sidePlayers(g, 'them').find((p) => p.id === by)?.name || '' : People.nameOf(by, g));
 /** Wer hat den Punkt gemacht? Beim Winner die Gewinnerseite, beim Fehler die andere Seite */
 export const actorSide = (r) => (typeOf(r.type)?.kind === 'win' ? r.win : r.win === 'us' ? 'them' : 'us');
 
@@ -82,7 +83,7 @@ export function mountAnalysis(hosts, gameId, ctl) {
     if (!ctl) { hosts.marks.innerHTML = ''; return; }
     const game = g(), ty = types();
     const side = (s) => `<div class="mk-side mk-${s}">
-        <div class="mk-h">${esc(t(s === 'us' ? 'an.pointUs' : 'an.pointThem'))}<small>${esc(sidePlayers(game, s).map((p) => p.name).join(' / '))}</small></div>
+        <div class="mk-h">${esc(People.pointLabel(game, s))}<small>${esc(sidePlayers(game, s).map((p) => p.name).join(' / '))}</small></div>
         <div class="mk-btns">${ty.map((x, i) => `<button class="mk" data-mk="${s}:${x.id}"><span>${esc(typeName(x))}</span><kbd>${(s === 'us' ? KEYS_US : KEYS_THEM)[i].toUpperCase()}</kbd></button>`).join('')}</div>
       </div>`;
     hosts.marks.innerHTML = `<section class="panel marks">
@@ -121,7 +122,7 @@ export function mountAnalysis(hosts, gameId, ctl) {
     const players = sidePlayers(game, actor);
     const shots = St.settings().shots;
     el.innerHTML = `<div class="mk-last mk-${r.win}">
-        <div class="mk-lh"><b>${esc(t(r.win === 'us' ? 'an.pointUs' : 'an.pointThem'))} · ${esc(typeName(typeOf(r.type)))}</b>
+        <div class="mk-lh"><b>${esc(People.pointLabel(game, r.win))} · ${esc(typeName(typeOf(r.type)))}</b>
           ${row && !row.extra ? `<span class="mono">${row.us}:${row.them}</span>` : ''}<span class="muted small mono">${fmtTime(r.t0)}–${fmtTime(r.t1)}</span>
           <span class="grow"></span><button class="sm ghost" data-ed="${r.id}">${icon('edit', 15)}<span>${esc(t('an.edit'))}</span></button></div>
         ${shots.length ? `<div class="mk-chips"><span class="muted small">${esc(t('an.shot'))}</span>${shots.map((s, i) => `<button class="chip ${r.shot === s ? 'on' : ''}" data-shot="${esc(s)}">${esc(shotName(s))}<kbd>${i + 1}</kbd></button>`).join('')}</div>` : ''}
@@ -293,7 +294,7 @@ export function mountAnalysis(hosts, gameId, ctl) {
       const actor = typeOf(x.type)?.kind === 'win' ? x.win : x.win === 'us' ? 'them' : 'us';
       $('#er-body', d).innerHTML = `
         <div class="lbl">${esc(t('an.who'))}</div>
-        <div class="seg fullseg">${['us', 'them'].map((s) => `<button data-w="${s}" class="${x.win === s ? 'on' : ''}">${esc(t(s === 'us' ? 'an.pointUs' : 'an.pointThem'))}</button>`).join('')}</div>
+        <div class="seg fullseg">${['us', 'them'].map((s) => `<button data-w="${s}" class="${x.win === s ? 'on' : ''}">${esc(People.pointLabel(game, s))}</button>`).join('')}</div>
         <div class="lbl" style="margin-top:12px">${esc(t('an.how'))}</div>
         <div class="chips">${types().map((ty) => `<button class="chip ${x.type === ty.id ? 'on' : ''}" data-ty="${ty.id}">${esc(typeName(ty))}</button>`).join('')}</div>
         <div class="lbl">${esc(t('an.shot'))}</div>
@@ -372,7 +373,7 @@ export function mountAnalysis(hosts, gameId, ctl) {
   hosts.side.innerHTML = `<section class="panel an-score" id="an-score"></section><section class="panel an-tabs" id="an-tabs"></section>`;
   const render = () => {
     if (!g()) return;
-    const sum = JSON.stringify([types(), St.settings().shots, g().ours, g().opp, g().kind]);
+    const sum = JSON.stringify([types(), St.settings().shots, g().ours, g().opp, g().kind, sidePlayers(g(), 'us').map((p) => p.name)]);
     if (sum !== lastSummary || !hosts.marks?.firstChild) { lastSummary = sum; renderMarks(); } else renderLast();
     renderScore();
     // Notiz-Eingabe nicht wegwerfen, während jemand schreibt

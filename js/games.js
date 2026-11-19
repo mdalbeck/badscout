@@ -1,6 +1,7 @@
 // Spiele: Liste mit Suche, Detailseite, Formular (Datum, Anlass, Einzel/Doppel, Zählweise, Spieler, Gegner).
 import * as St from './store.js';
 import * as BT from './badteam.js';
+import * as People from './people.js';
 import { icon } from './icons.js';
 import { t, fmtDay } from './i18n.js';
 import { $, $$, esc, toast } from './ui.js';
@@ -12,7 +13,7 @@ const F = { q: '' };
 
 // ================= Bausteine =================
 /** Namen unserer Seite, z. B. „Anna / Ben“ */
-export const oursText = (g) => g.ours.map((id) => BT.nameOf(id, g)).join(' / ');
+export const oursText = (g) => g.ours.map((id) => People.nameOf(id, g)).join(' / ');
 export const oppText = (g) => g.opp.filter(Boolean).join(' / ') || '?';
 export const kindText = (g) => t(g.kind === 'double' ? 'gm.double' : 'gm.single');
 
@@ -146,24 +147,17 @@ export function gameFormView(el, id, preset = null) {
   const backTo = id ? `#/game/${id}` : preset ? `#/player/${preset}` : '#/games';
   let kind = g.kind, scoring = g.scoring;
 
-  // Auswahlliste: aktive Spieler aus BadTeam nach Gruppen; dazu Spieler, die schon im Spiel stehen
-  const playerOptions = (sel) => {
-    const list = BT.players();
-    const groups = BT.groups();
-    const opt = (p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`;
-    const used = new Set();
-    let html = '';
-    for (const gr of groups) {
-      const ps = list.filter((p) => p.groups.includes(gr.id));
-      if (!ps.length) continue;
-      html += `<optgroup label="${esc(gr.name)}">${ps.map((p) => { used.add(p.id); return opt(p); }).join('')}</optgroup>`;
-    }
-    const rest = list.filter((p) => !used.has(p.id));
-    if (rest.length) html += groups.length ? `<optgroup label="${esc(t('pl.noGroup'))}">${rest.map(opt).join('')}</optgroup>` : rest.map(opt).join('');
-    if (sel && !list.some((p) => p.id === sel)) html += `<option value="${sel}" selected>${esc(BT.nameOf(sel, g))}</option>`;
-    return `<option value="">${esc(t('gm.ourPick'))}</option>${html}`;
-  };
+  // Vorschläge: alle Spieler aus BadTeam und die weiteren Spieler (Gäste, Gegner, Profis)
+  const opts = () => People.all().map((p) => `<option value="${esc(p.name)}">${esc(p.group || (p.source === 'team' ? 'BadTeam' : ''))}</option>`).join('');
   const noTeam = !BT.players().length;
+  g.oppIds = g.oppIds || [];
+  // Name → Spieler-ID: zuerst die bisher im Spiel stehenden, dann alle bekannten Spieler
+  const known = (name, prev) => {
+    const nm = String(name || '').trim().toLocaleLowerCase();
+    if (!nm) return null;
+    const keep = prev.find((pid) => pid && People.nameOf(pid, g).toLocaleLowerCase() === nm);
+    return keep || People.findByName(name)?.id || null;
+  };
 
   el.innerHTML = `
     <form id="gmf" class="exform" novalidate>
@@ -187,45 +181,62 @@ export function gameFormView(el, id, preset = null) {
           </div>
         </section>
         <section class="panel">
-          <h2>${icon('users', 20)} ${esc(t('gm.ours'))}</h2>
-          ${noTeam ? `<p class="note">${icon('alert', 16)}<span>${esc(t('gm.noTeam'))} <a href="#/backup">${esc(t('nav.backup'))}</a></span></p>` : `<p class="muted small hint">${esc(t('gm.oursHint'))}</p>`}
+          <h2>${icon('users', 20)} ${esc(t('gm.players'))}</h2>
+          ${noTeam ? `<p class="note">${icon('alert', 16)}<span>${esc(t('gm.noTeam'))} <a href="#/backup">${esc(t('nav.backup'))}</a></span></p>` : ''}
+          <datalist id="gmf-people">${opts()}</datalist>
           <div class="sides">
-            <div id="gmf-ours"></div>
+            <div><div class="lbl side1">${esc(t('gm.side1Long'))}</div><div id="gmf-ours"></div><p class="muted small hint">${esc(t('gm.side1Hint'))}</p></div>
             <div class="vsline"><span>${esc(t('gm.vs'))}</span></div>
-            <div><div class="lbl">${esc(t('gm.opp'))}</div><div id="gmf-opp"></div></div>
+            <div><div class="lbl side2">${esc(t('gm.side2'))}</div><div id="gmf-opp"></div>
+              <label class="switch small"><input type="checkbox" id="gmf-saveopp"><i></i><span>${esc(t('gm.saveOpp'))}</span></label></div>
           </div>
         </section>
       </div>
     </form>`;
   const f = $('#gmf', el);
   const n = () => (kind === 'double' ? 2 : 1);
-  // Felder für unsere Seite und die Gegner (Werte beim Umschalten Einzel/Doppel behalten)
+  // Felder für beide Seiten (Werte beim Umschalten Einzel/Doppel behalten)
+  const field = (name, v, ph, i) => `<input name="${name}" list="gmf-people" value="${esc(v || '')}" placeholder="${esc(t(ph))}" autocomplete="off" aria-label="${esc(t(name === 'our' ? 'gm.side1' : 'gm.side2'))} ${i + 1}">`;
   const renderSides = () => {
-    const ours = $$('select[name=our]', f).map((s) => s.value);
+    const ours = $$('input[name=our]', f).map((s) => s.value);
     const opp = $$('input[name=opp]', f).map((s) => s.value);
-    const o = ours.length ? ours : g.ours, p = opp.length ? opp : g.opp;
-    $('#gmf-ours', el).innerHTML = Array.from({ length: n() }, (_, i) => `<select name="our" aria-label="${esc(t('gm.ours'))} ${i + 1}">${playerOptions(o[i] || '')}</select>`).join('');
-    $('#gmf-opp', el).innerHTML = Array.from({ length: n() }, (_, i) => `<input name="opp" value="${esc(p[i] || '')}" placeholder="${esc(t(i ? 'gm.oppPh2' : 'gm.oppPh'))}" autocomplete="off">`).join('');
+    const o = ours.length ? ours : g.ours.map((pid) => People.nameOf(pid, g)), p = opp.length ? opp : g.opp;
+    $('#gmf-ours', el).innerHTML = Array.from({ length: n() }, (_, i) => field('our', o[i], i ? 'gm.ourPh2' : 'gm.ourPh', i)).join('');
+    $('#gmf-opp', el).innerHTML = Array.from({ length: n() }, (_, i) => field('opp', p[i], i ? 'gm.oppPh2' : 'gm.oppPh', i)).join('');
   };
   renderSides();
   $$('[data-kind]', f).forEach((b) => { b.onclick = () => { kind = b.dataset.kind; $$('[data-kind]', f).forEach((x) => x.classList.toggle('on', x === b)); renderSides(); }; });
   $$('[data-sc]', f).forEach((b) => { b.onclick = () => { scoring = +b.dataset.sc; $$('[data-sc]', f).forEach((x) => x.classList.toggle('on', x === b)); }; });
 
-  const read = () => {
-    const ours = [...new Set($$('select[name=our]', f).map((s) => s.value).filter(Boolean))];
-    const names = { ...g.names };
-    for (const pid of ours) names[pid] = BT.nameOf(pid, g);
-    return { day: f.day.value || St.todayIso(), event: f.event.value, kind, scoring, ours, names, opp: $$('input[name=opp]', f).map((s) => s.value.trim()) };
-  };
+  const read = () => ({
+    day: f.day.value || St.todayIso(), event: f.event.value, kind, scoring,
+    ourNames: $$('input[name=our]', f).map((x) => x.value.trim()).filter(Boolean),
+    opp: $$('input[name=opp]', f).map((x) => x.value.trim()),
+  });
   const initial = JSON.stringify(read());
   let saved = false;
   const dirty = () => !saved && JSON.stringify(read()) !== initial;
   const save = () => {
     const x = read();
-    if (!x.ours.length) { toast(t('gm.needOurs')); $('select[name=our]', f)?.focus(); return; }
+    if (!x.ourNames.length) { toast(t('gm.needOurs')); $('input[name=our]', f)?.focus(); return; }
+    // Seite 1: bekannte Spieler verknüpfen, neue Namen als weitere Spieler speichern
+    const created = [];
+    const resolve = (name, prev, create) => {
+      const pid = known(name, prev);
+      if (pid || !create) return pid;
+      created.push(name);
+      return St.addPlayer({ name });
+    };
+    const ours = [...new Set(x.ourNames.map((nm) => resolve(nm, g.ours, true)))];
+    const saveOpp = $('#gmf-saveopp', f).checked;
+    const oppIds = x.opp.map((nm) => (nm ? resolve(nm, g.oppIds, saveOpp) || '' : ''));
+    const names = { ...g.names };
+    for (const pid of [...ours, ...oppIds]) if (pid) names[pid] = People.nameOf(pid, g);
+    const data = { day: x.day, event: x.event, kind, scoring, ours, names, opp: x.opp, oppIds };
     saved = true;
-    if (id) { St.updateGame(id, x); location.hash = `#/game/${id}`; return; }
-    const nid = St.addGame(x);
+    if (created.length) toast(t('gm.created', { names: created.join(', ') }));
+    if (id) { St.updateGame(id, data); location.hash = `#/game/${id}`; return; }
+    const nid = St.addGame(data);
     location.hash = `#/game/${nid}`;
   };
   $('#gmf-no', el).onclick = () => { location.hash = backTo; };

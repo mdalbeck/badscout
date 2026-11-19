@@ -1152,3 +1152,12 @@ dialog .chips .chip { margin: 0; }
 .tr-row { flex: none; }
 .tr-row > span.tchip, .tr-row > span.rl-sc { flex: none; display: inline-flex; align-items: center; }
 .tr-row > span.rl-b { flex: 1; min-width: 0; }
+/* Spieler: Herkunft (BadTeam / weitere) */
+.pl-src { display: flex; align-items: center; gap: 8px; margin: 22px 0 10px; font-size: 18px; }
+.pl-src:first-of-type { margin-top: 6px; }
+.pl-empty { margin: 0 0 8px; }
+.plrow.own { border-left-color: var(--faint); }
+.plrow.own .avatar { background: var(--surface3); color: var(--text); }
+.side1 { color: var(--us-text); font-weight: 700; }
+.side2 { color: var(--them-text); font-weight: 700; }
+#pd-group + datalist + .chips { margin: -4px 0 12px; }

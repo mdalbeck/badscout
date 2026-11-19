@@ -13,6 +13,7 @@ Later: automatic rally detection (AI), live analysis courtside, reports via link
 
 ## How it works with the other apps
 - Players come from BadTeam: BadScout only **reads** `badteam-daten.json` (players without contact data, groups) – it never writes it.
+- Other players (guests, opponents, pros) live only in BadScout (`players`). Both sides of a match can link to players (`ours`, `oppIds`); a player's page and season stats work from either side (the match is flipped to their view).
 - Sending to BadClip goes through BadClip's mailbox folder `badclip-eingang/*.json`, which BadClip picks up; BadScout never writes BadClip's file.
 - Videos taken over from BadClip are copied inside Dropbox (`badclip-videos/` → `badscout-videos/`); BadScout only deletes its own copies.
 
@@ -34,8 +35,9 @@ Later: automatic rally detection (AI), live analysis courtside, reports via link
 ## Data format (`badscout-daten.json`)
 ```
 games   { id, day, event, kind: 'single' | 'double', scoring: 21 | 15, ours: [playerId], names: { playerId: name },
-          opp: [name], comment, video, rallies: [{ id, t0, t1, win, type, shot, by }], notes: [{ id, t, text }], done, createdAt, updatedAt }
+          opp: [name], oppIds: [playerId | ''], comment, video, rallies: [{ id, t0, t1, win, type, shot, by }], notes: [{ id, t, text }], done, createdAt, updatedAt }
 settings { types: [{ id, name, kind }], shots: [], notePause, updatedAt }
+players { id, name, group, note, createdAt, updatedAt }   (other players, not in BadTeam)
 deleted { id: timestamp }   (kept 120 days)
 ```
 

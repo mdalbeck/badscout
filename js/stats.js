@@ -2,6 +2,7 @@
 // pro Spieler über mehrere Spiele/die Saison, und Berichte zum Drucken oder als PDF.
 import * as St from './store.js';
 import * as BT from './badteam.js';
+import * as People from './people.js';
 import { icon } from './icons.js';
 import { t, fmtDay } from './i18n.js';
 import { $, esc } from './ui.js';
@@ -55,7 +56,7 @@ function setChart(game, rows, setNo, width) {
   const us = [{ x: 0, y: 0 }, ...list.map((x, i) => ({ x: i + 1, y: x.us }))];
   const them = [{ x: 0, y: 0 }, ...list.map((x, i) => ({ x: i + 1, y: x.them }))];
   const tips = { 0: '0:0' };
-  list.forEach((x, i) => { tips[i + 1] = `${t('st.rallyN', { n: i + 1 })} · ${x.us}:${x.them} · ${t(x.r.win === 'us' ? 'an.pointUs' : 'an.pointThem')} · ${typeName(typeOf(x.r.type))}${x.r.shot ? ` (${shotName(x.r.shot)})` : ''} · ${fmtTime(x.r.t1)}`; });
+  list.forEach((x, i) => { tips[i + 1] = `${t('st.rallyN', { n: i + 1 })} · ${x.us}:${x.them} · ${People.pointLabel(game, x.r.win)} · ${typeName(typeOf(x.r.type))}${x.r.shot ? ` (${shotName(x.r.shot)})` : ''} · ${fmtTime(x.r.t1)}`; });
   const top = Math.max(R.to, ...list.map((x) => Math.max(x.us, x.them)));
   const yMax = Math.ceil(top / 5) * 5;
   const n = list.length;
@@ -76,15 +77,15 @@ function byTypeBlock(game, s) {
   const rowsFor = (by, of) => ids.filter((id) => typeOf(id) || by[id]).map((id) => ({ label: typeName(typeOf(id)) || id, value: by[id] || 0, of }));
   const max = Math.max(1, ...Object.values(s.usByType), ...Object.values(s.themByType));
   return `<div class="st-two">
-      <div><h3><i class="c-sw c-us"></i>${esc(t('st.ourPoints'))} <span class="muted">${s.won}</span></h3>${barRows(rowsFor(s.usByType, s.won), 'us', max)}</div>
-      <div><h3><i class="c-sw c-them"></i>${esc(t('st.oppPoints'))} <span class="muted">${s.lost}</span></h3>${barRows(rowsFor(s.themByType, s.lost), 'them', max)}</div>
+      <div><h3><i class="c-sw c-us"></i>${esc(t('st.pointsOf', { who: People.sideShort(game, 'us') }))} <span class="muted">${s.won}</span></h3>${barRows(rowsFor(s.usByType, s.won), 'us', max)}</div>
+      <div><h3><i class="c-sw c-them"></i>${esc(t('st.pointsOf', { who: People.sideShort(game, 'them') }))} <span class="muted">${s.lost}</span></h3>${barRows(rowsFor(s.themByType, s.lost), 'them', max)}</div>
     </div>`;
 }
 
-function shotsTable(s) {
+function shotsTable(game, s) {
   const list = Object.entries(s.shots);
   if (!list.length) return '';
-  return `<table class="st-tab"><thead><tr><th>${esc(t('an.shot'))}</th><th>${esc(t('st.ourWin'))}</th><th>${esc(t('st.ourErr'))}</th><th>${esc(t('st.oppWin'))}</th><th>${esc(t('st.oppErr'))}</th></tr></thead>
+  return `<table class="st-tab"><thead><tr><th>${esc(t('an.shot'))}</th><th>${esc(t('st.winOf', { who: People.sideShort(game, 'us') }))}</th><th>${esc(t('st.errOf', { who: People.sideShort(game, 'us') }))}</th><th>${esc(t('st.winOf', { who: People.sideShort(game, 'them') }))}</th><th>${esc(t('st.errOf', { who: People.sideShort(game, 'them') }))}</th></tr></thead>
     <tbody>${list.map(([k, x]) => `<tr><td>${esc(shotName(k))}</td><td>${x.usWin || ''}</td><td>${x.usErr || ''}</td><td>${x.themWin || ''}</td><td>${x.themErr || ''}</td></tr>`).join('')}</tbody></table>`;
 }
 function playersTable(game, s) {
@@ -96,7 +97,7 @@ function playersTable(game, s) {
 }
 function setsTable(game, s) {
   const sets = [...new Set(s.rows.map((x) => x.set))];
-  return `<table class="st-tab"><thead><tr><th>${esc(t('st.set'))}</th><th>${esc(t('st.score'))}</th><th>${esc(t('st.winners'))}</th><th>${esc(t('st.errors'))}</th><th>${esc(t('st.oppWinShort'))}</th><th>${esc(t('st.oppErrShort'))}</th></tr></thead>
+  return `<table class="st-tab"><thead><tr><th>${esc(t('st.set'))}</th><th>${esc(t('st.score'))}</th><th>${esc(t('st.winOf', { who: People.sideShort(game, 'us') }))}</th><th>${esc(t('st.errOf', { who: People.sideShort(game, 'us') }))}</th><th>${esc(t('st.winOf', { who: People.sideShort(game, 'them') }))}</th><th>${esc(t('st.errOf', { who: People.sideShort(game, 'them') }))}</th></tr></thead>
     <tbody>${sets.map((n) => {
       const rs = s.rows.filter((x) => x.set === n), last = rs.at(-1);
       const cnt = (win, kind) => rs.filter(({ r }) => r.win === win && (typeOf(r.type)?.kind || 'err') === kind).length;
@@ -108,10 +109,10 @@ function setsTable(game, s) {
 function gameBody(game, s, width, print = false) {
   const sets = [...new Set(s.rows.map((x) => x.set))];
   const tiles = `<div class="stats st-tiles">
-      ${tile(`${s.won}<small>/${s.n}</small>`, t('st.tWon'), t('st.pctOf', { p: s.wonPct }))}
-      ${tile(s.ourWin, t('st.tWinners'), t('st.oppHas', { n: s.oppWin }))}
-      ${tile(s.ourErr, t('st.tErrors'), t('st.errRate', { p: s.errRate }))}
-      ${tile(s.streakUs, t('st.tStreak'), t('st.oppHas', { n: s.streakThem }))}
+      ${tile(`${s.won}<small>/${s.n}</small>`, t('st.tWonOf', { who: People.sideShort(game, 'us') }), t('st.pctOf', { p: s.wonPct }))}
+      ${tile(s.ourWin, t('st.winOf', { who: People.sideShort(game, 'us') }), t('st.sideHas', { who: People.sideShort(game, 'them'), n: s.oppWin }))}
+      ${tile(s.ourErr, t('st.errOf', { who: People.sideShort(game, 'us') }), t('st.errRate', { p: s.errRate }))}
+      ${tile(s.streakUs, t('st.tStreak'), t('st.sideHas', { who: People.sideShort(game, 'them'), n: s.streakThem }))}
     </div>`;
   const leg = legend([{ name: oursText(game), color: 'us' }, { name: oppText(game), color: 'them' }]);
   return `${tiles}
@@ -120,7 +121,7 @@ function gameBody(game, s, width, print = false) {
       <details class="st-table"${print ? ' open' : ''}><summary>${esc(t('st.asTable'))}</summary>${setsTable(game, s)}</details></section>
     <section class="${print ? 'p-sec' : 'panel wide'}"><h2>${icon('lens', 20)} ${esc(t('st.how'))}</h2>
       <p class="muted small">${esc(t('st.howHint'))}</p>${byTypeBlock(game, s)}</section>
-    ${Object.keys(s.shots).length ? `<section class="${print ? 'p-sec' : 'panel wide'}"><h2>${esc(t('st.shots'))}</h2>${shotsTable(s)}</section>` : ''}
+    ${Object.keys(s.shots).length ? `<section class="${print ? 'p-sec' : 'panel wide'}"><h2>${esc(t('st.shots'))}</h2>${shotsTable(game, s)}</section>` : ''}
     ${game.kind === 'double' ? `<section class="${print ? 'p-sec' : 'panel wide'}"><h2>${icon('users', 20)} ${esc(t('st.players'))}</h2>${playersTable(game, s)}</section>` : ''}`;
 }
 
@@ -178,8 +179,9 @@ export function periods() {
 }
 export function playerSeason(pid, periodId = 'all') {
   const p = periods().find((x) => x.id === periodId) || periods()[0];
-  const games = St.S.data.games.filter((g) => g.ours.includes(pid) && g.day >= p.from && g.day <= p.to).sort((a, b) => a.day.localeCompare(b.day) || a.createdAt - b.createdAt);
-  const list = games.map((g) => ({ g, s: gameStats(g) })).filter((x) => x.s.n);
+  const games = St.S.data.games.filter((g) => People.sideOf(g, pid) && g.day >= p.from && g.day <= p.to).sort((a, b) => a.day.localeCompare(b.day) || a.createdAt - b.createdAt);
+  // Stand der Spieler auf Seite 2, wird das Spiel aus seiner Sicht gerechnet
+  const list = games.map((g0) => { const g = People.asSeenBy(g0, pid); return { g, s: gameStats(g), id: g0.id }; }).filter((x) => x.s.n);
   const sum = (f) => list.reduce((a, x) => a + f(x.s), 0);
   const n = sum((s) => s.n);
   return {
@@ -229,8 +231,8 @@ export function reportView(el, kind, id, periodId = 'season') {
   const brand = (what) => `<div class="p-brand">Bad<b>Scout</b> · ${esc(what)}</div>`;
   const W = 640;
   if (kind === 'player') {
-    const games = St.S.data.games.filter((g) => g.ours.includes(id));
-    const name = BT.player(id)?.name || (games[0] && BT.nameOf(id, games[0])) || '?';
+    const games = St.S.data.games.filter((g) => People.sideOf(g, id));
+    const name = People.person(id)?.name || (games[0] && People.nameOf(id, games[0])) || '?';
     const p = periods().find((x) => x.id === periodId) || periods()[0];
     el.innerHTML = `${bar}<div class="sheet">
       <div class="p-head"><div>${brand(t('st.playerReport'))}<h1>${esc(name)}</h1><div class="p-sub">${esc(p.label)}</div></div></div>
