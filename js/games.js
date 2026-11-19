@@ -82,6 +82,7 @@ export function gameView(el, id) {
         <a class="back" href="#/games">${icon('back', 16)}${esc(t('nav.games'))}<kbd>Esc</kbd></a>
         <h1><span class="eyebrow">${esc([fmtDay(g.day), g.event, kindText(g)].filter(Boolean).join(' · '))}</span><span class="ours">${esc(oursText(g))}</span> <span class="muted vs">${esc(t('gm.vs'))}</span> ${esc(oppText(g))}</h1>
         <div class="acts">
+          ${g.rallies.length ? `<a class="btn primary" id="gm-stats" href="#/game/${g.id}/stats">${icon('chart', 18)}<span>${esc(t('st.title'))}</span></a>` : ''}
           <a class="btn" id="gm-edit" href="#/game/${g.id}/edit">${icon('edit', 18)}<span>${esc(t('gm.edit'))}</span></a>
           <button class="danger ghost" id="gm-del">${icon('trash', 18)}<span>${esc(t('gm.delete'))}</span></button>
         </div>`;

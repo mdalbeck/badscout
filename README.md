@@ -6,9 +6,9 @@ Part of the “Bad Apps” family, next to [BadClip](https://badclip.mpdalbeck.w
 Record your own players’ matches rally by rally and review them. Local-first: no login, no server, no build step.
 
 ## Status
-Steps 1–3 done: rally marking (who wins the point and how, keys Q–T / A–G, editable buttons, optional shot and player), automatic score (21 or 15, sets, change of ends), timeline over the whole video, notes at a time (keep playing or pause), rally list for corrections, videos (upload in 8 MB pieces to `badscout-videos/`, streaming via Dropbox link, YouTube, take over from BadClip by copying inside Dropbox), player with slow motion and frame steps, matches (date, event, singles/doubles, scoring to 21 or 15, our players from BadTeam, opponents by name), player pages,
+Steps 1–4 done: analysis per match (score course per game, how points are won, error rate, shots, players in doubles, coach comment), player page across matches and seasons with trend charts, printable match and player reports (PDF via the print dialog), rally marking (who wins the point and how, keys Q–T / A–G, editable buttons, optional shot and player), automatic score (21 or 15, sets, change of ends), timeline over the whole video, notes at a time (keep playing or pause), rally list for corrections, videos (upload in 8 MB pieces to `badscout-videos/`, streaming via Dropbox link, YouTube, take over from BadClip by copying inside Dropbox), player with slow motion and frame steps, matches (date, event, singles/doubles, scoring to 21 or 15, our players from BadTeam, opponents by name), player pages,
 Dropbox sync, backup, tour, German/English, light/dark.
-Next: statistics with score graph, player page over the season, report, transfer to BadClip.
+Next: transfer to BadClip (mailbox), then join the Bad Apps family.
 
 ## How it works with the other apps
 - Players come from BadTeam: BadScout only **reads** `badteam-daten.json` (players without contact data, groups) – it never writes it.
@@ -32,7 +32,7 @@ Next: statistics with score graph, player page over the season, report, transfer
 ## Data format (`badscout-daten.json`)
 ```
 games   { id, day, event, kind: 'single' | 'double', scoring: 21 | 15, ours: [playerId], names: { playerId: name },
-          opp: [name], video, rallies: [{ id, t0, t1, win, type, shot, by }], notes: [{ id, t, text }], done, createdAt, updatedAt }
+          opp: [name], comment, video, rallies: [{ id, t0, t1, win, type, shot, by }], notes: [{ id, t, text }], done, createdAt, updatedAt }
 settings { types: [{ id, name, kind }], shots: [], notePause, updatedAt }
 deleted { id: timestamp }   (kept 120 days)
 ```

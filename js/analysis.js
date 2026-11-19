@@ -185,7 +185,10 @@ export function mountAnalysis(hosts, gameId, ctl) {
       </div>
       ${c.sets.length ? `<div class="sc-sets">${c.sets.map((s, i) => `<span class="${s.win === 'us' ? 'w' : 'l'}"><small>${i + 1}.</small> ${s.us}:${s.them}</span>`).join('')}</div>` : ''}
       <p class="muted small sc-n">${esc(n === 1 ? t('an.oneRally') : t('an.nRallies', { n }))} · ${esc(t(game.scoring === 15 ? 'gm.s15' : 'gm.s21'))}</p>`;
-    $('#an-done', hosts.side).onchange = (e) => St.updateGame(gameId, { done: e.target.checked });
+    $('#an-done', hosts.side).onchange = (e) => {
+      St.updateGame(gameId, { done: e.target.checked });
+      if (e.target.checked) toast(t('an.doneToast'), t('st.title'), () => (location.hash = `#/game/${gameId}/stats`));
+    };
     // Kurzer Stand an den Knöpfen (am Handy/Tablet steht die Seitenleiste weiter unten)
     const ms = hosts.marks && $('#mk-score', hosts.marks);
     if (ms) ms.innerHTML = `<b class="us">${cur.us}</b>:<b class="them">${cur.them}</b><small>${esc(c.over ? t('an.final') : t('an.setN', { n: c.set }))}${c.sets.length ? ` · ${c.sets.map((x) => `${x.us}:${x.them}`).join(' ')}` : ''}</small>`;

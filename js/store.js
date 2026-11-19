@@ -102,6 +102,7 @@ const cleanGame = (x) => ({
   rallies: (Array.isArray(x.rallies) ? x.rallies : []).filter((r) => r?.id).map(cleanRally).sort((a, b) => a.t1 - b.t1),
   notes: (Array.isArray(x.notes) ? x.notes : []).filter((n) => n?.id).map(cleanNote).sort((a, b) => a.t - b.t),
   done: !!x.done,
+  comment: String(x.comment ?? '').trim(),
 });
 
 function normalize(d) {

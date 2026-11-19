@@ -4,6 +4,7 @@ import { t, lang, setLang, fmtDateTime } from './i18n.js';
 import { $, $$, esc, toast, modal, closeModal, dlg } from './ui.js';
 import { gamesView, gameView, gameFormView, gameRow } from './games.js';
 import { playersView, playerView } from './players.js';
+import { gameStatsView, reportView } from './stats.js';
 import * as Sync from './sync.js';
 import * as BT from './badteam.js';
 import { uploading } from './video.js';
@@ -228,6 +229,7 @@ const keyGroups = () => [
   [t('nav.games'), [['N', t('gm.new')], ['/', t('keys.search')], ['Esc', t('keys.back')], [`${t('key.ctrl')} + ↵`, t('keys.save')]]],
   [t('keys.gMark'), [['Q W E R T', t('an.pointUs')], ['A S D F G', t('an.pointThem')], ['B', t('an.start')], ['N', t('an.noteNew')], ['1 – 9', t('an.shot')], ['Z / ⌫', t('an.undo')]]],
   [t('keys.gVideo'), [[t('key.space') + ' / K', t('vd.play')], ['← / →', t('vd.skip5')], ['⇧ + ← / →', t('vd.skip1')], [', / .', t('vd.frames')], ['− / +', t('vd.rate')], ['U', t('vd.file')], ['Y', t('vd.yt')], ['B', t('vd.bc')]]],
+  [t('st.title'), [['D', t('st.report')]]],
   [t('nav.backup'), [['E', t('bk.export')], ['I', t('bk.import')]]],
 ];
 const keysOn = () => St.S.meta.showKeys !== false; // Standard: an (hilft beim ersten Benutzen)
@@ -266,6 +268,8 @@ function route() {
   if (a === 'games') { view = gamesView(el); nav = 'games'; }
   else if (a === 'game' && b === 'new') { view = gameFormView(el, null, c || null); nav = 'games'; }
   else if (a === 'game' && c === 'edit') { view = gameFormView(el, b); nav = 'games'; }
+  else if (a === 'game' && c === 'stats') { view = gameStatsView(el, b); nav = 'games'; }
+  else if (a === 'report') { view = reportView(el, b, c, d); nav = b === 'player' ? 'players' : 'games'; }
   else if (a === 'game') { view = gameView(el, b); nav = 'games'; }
   else if (a === 'players') { view = playersView(el); nav = 'players'; }
   else if (a === 'player') { view = playerView(el, b); nav = 'players'; }

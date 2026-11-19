@@ -5,6 +5,11 @@ import { icon } from './icons.js';
 import { t } from './i18n.js';
 import { esc } from './ui.js';
 import { gameRow } from './games.js';
+import { seasonBlock, periods } from './stats.js';
+import { bindTips } from './charts.js';
+import { $, $$ } from './ui.js';
+
+let period = 'season';
 
 export const initials = (name) => (name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
 export const gamesOf = (pid) => St.gamesSorted().filter((g) => g.ours.includes(pid));
@@ -62,18 +67,29 @@ export function playerView(el, id) {
         <h1><span class="eyebrow">${groups.length ? `<span class="tags">${groups.map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</span>` : esc(t('pl.eyebrow'))}</span>${esc(name)}</h1>
         <div class="acts"><a class="btn primary" id="pl-newgame" href="#/game/new/${encodeURIComponent(id)}">${icon('plus', 18)}<span>${esc(t('pl.newGame'))}</span><kbd>N</kbd></a></div>
       </div>
+      <section class="panel wide" id="pl-season">
+        <div class="lblrow"><h2>${icon('chart', 20)} ${esc(t('st.season'))}</h2>
+          <a class="btn sm" id="pl-report" href="#/report/player/${encodeURIComponent(id)}/${period}">${icon('printer', 16)}<span>${esc(t('st.report'))}</span><kbd>D</kbd></a></div>
+        <div class="seg st-periods">${periods().map((p) => `<button data-per="${p.id}" class="${p.id === period ? 'on' : ''}">${esc(p.label)}</button>`).join('')}</div>
+        <div id="pl-sblock">${seasonBlock(id, period, Math.min(1000, (el.clientWidth || 900)) - 44)}</div>
+      </section>
       <section class="panel wide">
         <h2>${icon('lens', 20)} ${esc(t('pl.games'))} <span class="gcount">${games.length}</span></h2>
         ${games.length ? `<div class="dlist">${games.map(gameRow).join('')}</div>` : `<p class="muted">${esc(t('pl.noGames'))}</p>`}
       </section>`;
+    $$('[data-per]', el).forEach((b) => (b.onclick = () => { period = b.dataset.per; render(); }));
   };
+  let hide = () => {};
   render();
+  hide = bindTips(el);
   return {
     refresh: render,
     key(e) {
       if (e.key === 'Escape') { location.hash = '#/players'; return true; }
       if (e.key === 'n' || e.key === 'N') { location.hash = `#/game/new/${encodeURIComponent(id)}`; return true; }
+      if (e.key === 'd' || e.key === 'D') { location.hash = $('#pl-report', el).getAttribute('href'); return true; }
       return false;
     },
+    destroy() { hide(); },
   };
 }
